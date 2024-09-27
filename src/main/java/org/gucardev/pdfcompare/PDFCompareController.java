@@ -1,4 +1,4 @@
-package org.gucardev.demo1234;
+package org.gucardev.pdfcompare;
 
 
 import org.springframework.http.HttpHeaders;

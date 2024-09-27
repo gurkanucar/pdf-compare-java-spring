@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.gucardev</groupId>
-    <artifactId>demo1234</artifactId>
+    <artifactId>pdfcompare</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>demo1234</name>
     <description>demo1234</description>

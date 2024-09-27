@@ -1,10 +1,9 @@
-package org.gucardev.demo1234;
+package org.gucardev.pdfcompare;
 
 
 import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.*;
 import com.github.difflib.patch.Chunk;
-import com.itextpdf.kernel.pdf.canvas.parser.listener.TextChunk;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.itextpdf.text.pdf.parser.*;
