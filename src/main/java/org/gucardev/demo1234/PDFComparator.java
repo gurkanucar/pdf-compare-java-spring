@@ -18,7 +18,7 @@ import java.util.List;
 
 public class PDFComparator {
 
-    public static void comparePDFs(InputStream pdf1InputStream, InputStream pdf2InputStream, OutputStream outputStream) throws IOException, DocumentException {
+    public static void comparePDFs(InputStream pdf1InputStream, InputStream pdf2InputStream, OutputStream outputStream,boolean isMultiple) throws IOException, DocumentException {
         PdfReader reader1 = new PdfReader(pdf1InputStream);
         PdfReader reader2 = new PdfReader(pdf2InputStream);
 
@@ -40,7 +40,7 @@ public class PDFComparator {
             // Determine the combined page size
             float width1 = pageSize1 != null ? pageSize1.getWidth() : 0;
             float width2 = pageSize2 != null ? pageSize2.getWidth() : 0;
-            float combinedWidth = width1 + width2;
+            float combinedWidth = isMultiple ? width1 + width2 : width2;
             float height1 = pageSize1 != null ? pageSize1.getHeight() : 0;
             float height2 = pageSize2 != null ? pageSize2.getHeight() : 0;
             float combinedHeight = Math.max(height1, height2);
@@ -59,32 +59,30 @@ public class PDFComparator {
 
             if (i <= reader1.getNumberOfPages()) {
                 page1 = writer.getImportedPage(reader1, i);
-                cb.addTemplate(page1, 0, 0);
+                if (isMultiple) {
+                    cb.addTemplate(page1, 0, 0);
+                }
             }
 
             if (i <= reader2.getNumberOfPages()) {
                 page2 = writer.getImportedPage(reader2, i);
-                cb.addTemplate(page2, width1, 0);
+                cb.addTemplate(page2, isMultiple ? width1 : 0, 0); // Only add the second PDF if isMultiple is false
             }
 
             // Check for new or removed pages and highlight entire page accordingly
             if (page1 == null && page2 != null) {
-                // Page is new in second PDF, highlight entire right page in green
                 Rectangle rect = new Rectangle(0, 0, width2, height2);
-                highlightEntirePage(cb, rect, BaseColor.GREEN, width1);
-                continue; // Skip further processing for this page
-            } else if (page1 != null && page2 == null) {
-                // Page is removed from second PDF, highlight entire left page in red
+                highlightEntirePage(cb, rect, BaseColor.GREEN, isMultiple ? width1 : 0);
+                continue;
+            } else if (page1 != null && page2 == null && isMultiple) {
                 Rectangle rect = new Rectangle(0, 0, width1, height1);
                 highlightEntirePage(cb, rect, BaseColor.RED, 0);
-                continue; // Skip further processing for this page
+                continue;
             }
 
-            // Extract words and positions from both PDFs if pages exist
             List<TextChunk> words1 = i <= reader1.getNumberOfPages() ? extractWords(reader1, i) : new ArrayList<>();
             List<TextChunk> words2 = i <= reader2.getNumberOfPages() ? extractWords(reader2, i) : new ArrayList<>();
 
-            // Get text from words
             List<String> texts1 = new ArrayList<>();
             for (TextChunk word : words1) {
                 texts1.add(word.text);
@@ -94,40 +92,34 @@ public class PDFComparator {
                 texts2.add(word.text);
             }
 
-            // Use Java Diff Utils for word-based diff
             Patch<String> textPatch = DiffUtils.diff(texts1, texts2);
 
-            // Highlight text differences
             for (AbstractDelta<String> delta : textPatch.getDeltas()) {
                 Chunk<String> source = delta.getSource();
                 Chunk<String> target = delta.getTarget();
 
-                if (delta.getType() == DeltaType.DELETE || delta.getType() == DeltaType.CHANGE) {
-                    // Highlight deletions in left PDF (Red color)
+                if (isMultiple && (delta.getType() == DeltaType.DELETE || delta.getType() == DeltaType.CHANGE)) {
                     for (int j = source.getPosition(); j < source.getPosition() + source.size(); j++) {
                         if (j < words1.size()) {
                             TextChunk word = words1.get(j);
-                            drawRectangle(cb, word.rectangle, BaseColor.RED, 0); // Use red for deletions
+                            drawRectangle(cb, word.rectangle, BaseColor.RED, 0);
                         }
                     }
                 }
 
                 if (delta.getType() == DeltaType.INSERT || delta.getType() == DeltaType.CHANGE) {
-                    // Highlight insertions in right PDF (Green color)
                     for (int j = target.getPosition(); j < target.getPosition() + target.size(); j++) {
                         if (j < words2.size()) {
                             TextChunk word = words2.get(j);
-                            drawRectangle(cb, word.rectangle, BaseColor.GREEN, width1); // Use green for insertions
+                            drawRectangle(cb, word.rectangle, BaseColor.GREEN, isMultiple ? width1 : 0);
                         }
                     }
                 }
             }
 
-            // Extract images and positions from both PDFs if pages exist
             List<ImageChunk> images1 = i <= reader1.getNumberOfPages() ? extractImages(reader1, i) : new ArrayList<>();
             List<ImageChunk> images2 = i <= reader2.getNumberOfPages() ? extractImages(reader2, i) : new ArrayList<>();
 
-            // Get identifiers from images
             List<String> imageIds1 = new ArrayList<>();
             for (ImageChunk image : images1) {
                 imageIds1.add(image.getIdentifier());
@@ -137,30 +129,24 @@ public class PDFComparator {
                 imageIds2.add(image.getIdentifier());
             }
 
-            // Use Java Diff Utils for image-based diff
             Patch<String> imagePatch = DiffUtils.diff(imageIds1, imageIds2);
 
-            // Highlight image differences
             for (AbstractDelta<String> delta : imagePatch.getDeltas()) {
                 Chunk<String> source = delta.getSource();
                 Chunk<String> target = delta.getTarget();
-
-                if (delta.getType() == DeltaType.DELETE || delta.getType() == DeltaType.CHANGE) {
-                    // Highlight image deletions in left PDF (Red color)
+                if (isMultiple && (delta.getType() == DeltaType.DELETE || delta.getType() == DeltaType.CHANGE)) {
                     for (int j = source.getPosition(); j < source.getPosition() + source.size(); j++) {
                         if (j < images1.size()) {
                             ImageChunk image = images1.get(j);
-                            highlightRectangle(cb, image.rectangle, BaseColor.RED, 0); // Use red for deletions
+                            highlightRectangle(cb, image.rectangle, BaseColor.RED, 0);
                         }
                     }
                 }
-
                 if (delta.getType() == DeltaType.INSERT || delta.getType() == DeltaType.CHANGE) {
-                    // Highlight image insertions in right PDF (Green color)
                     for (int j = target.getPosition(); j < target.getPosition() + target.size(); j++) {
                         if (j < images2.size()) {
                             ImageChunk image = images2.get(j);
-                            highlightRectangle(cb, image.rectangle, BaseColor.GREEN, width1); // Use green for insertions
+                            highlightRectangle(cb, image.rectangle, BaseColor.GREEN, isMultiple ? width1 : 0);
                         }
                     }
                 }

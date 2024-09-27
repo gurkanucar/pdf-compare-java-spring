@@ -16,14 +16,15 @@ public class PDFCompareController {
     @PostMapping(value = "/compare_pdfs", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<StreamingResponseBody> comparePDFs(
             @RequestParam("pdf1") MultipartFile pdf1,
-            @RequestParam("pdf2") MultipartFile pdf2) {
+            @RequestParam("pdf2") MultipartFile pdf2, @RequestParam(name = "isMultiple", defaultValue = "false", required = false) boolean isMultiple) {
 
         StreamingResponseBody stream = out -> {
             try {
                 PDFComparator.comparePDFs(
                         pdf1.getInputStream(),
                         pdf2.getInputStream(),
-                        out);
+                        out,
+                        isMultiple);
             } catch (Exception e) {
                 e.printStackTrace();
                 // Handle exceptions as needed
